@@ -103,31 +103,10 @@ class VDD:
 
 
 
-    ############### Add your code here ######################
-    # Define your 3x3x3 kernel, for example, a smoothing kernel
-    if self.filter == "Smoothing":
-        print "INFO: Applying a smoothing filter ..."
-        kernel = np.ones([3, 3, 3])
-        kernel = kernel / kernel.sum()
+    #Euclidean Distance calculator
 
-    # Try to implement a sharpening kernel 
-    if self.filter == "Sharpening":
-        print "INFO: Applying a sharpening filter ..."
-        kernel = np.ones([3, 3, 3])
-        kernel = kernel / kernel.sum()
-        kernel_identity = np.zeros([3, 3, 3]) 
-        kernel_identity[1, 1, 1] = 2
-        kernel = kernel_identity - kernel
-
-    # Try to implemnt an edge detector
-    if self.filter == "Edge":
-        print "INFO: Applying an edge detector ..."
-        kernel = np.zeros([3, 3, 3])
-        kernel[1, 1, :] = -1
-        kernel[1, :, 1] = -1
-        kernel[:, 1, 1] = -1
-        kernel[1, 1, 1] = 6
-
+    def distcalc(array1, array2):
+        dist = numpy.linalg.norm(array1 - array2)
     #######################################################
 
 
