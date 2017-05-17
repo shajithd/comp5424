@@ -27,7 +27,7 @@ class VDD:
 # The main widget
 #
 
-class VDD:
+class VDDWidget:
   def __init__(self, parent = None):
     if not parent:
       self.parent = slicer.qMRMLWidget()
@@ -103,7 +103,7 @@ class VDD:
 
 
 
-    #Euclidean Distance calculator
+    #Euclidean Distance calculator, need to work out the direction of the vector as well use non linear image registration method
 
     def distcalc(array1, array2):
         dist = numpy.linalg.norm(array1 - array2)
