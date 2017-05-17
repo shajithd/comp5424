@@ -1,30 +1,24 @@
 from __main__ import vtk, qt, ctk, slicer
-from vtk.util import numpy_support
-import numpy as np
 
 #
-# ITBImageFilter
+# HelloLaplace
 #
 
 class VDD:
   def __init__(self, parent):
-    parent.title = "Voxel Dislpacement Detector"
+    parent.title = "Voxel Displacement Detector (VDD)"
     parent.categories = ["Examples"]
     parent.dependencies = []
-    parent.contributors = [ """
-    Shajith Dissanayake (USYD) 
-    """]
+    parent.contributors = ["Shajith Dissanayake (USYD)"]
     parent.helpText = """
-    COMP5424 VDD Assignment
+    COMP5424 Assignment creating a Slicer module for VDD.
     """
     parent.acknowledgementText = """
-    This python program calculates the voxel displacements of two images using an image registration method,
-    and then displays the displacement map in 3D space.
-    """ 
+    Python program to calculate voxel displacement of two images and display it in 3D Space""" # replace with organization, grant and thanks.
     self.parent = parent
 
 #
-# The main widget
+# qHelloPythonWidget
 #
 
 class VDDWidget:
@@ -40,14 +34,20 @@ class VDDWidget:
       self.setup()
       self.parent.show()
 
-  #  Setup the layout
   def setup(self):
+    # Collapsible button
+    self.laplaceCollapsibleButton = ctk.ctkCollapsibleButton()
+    self.laplaceCollapsibleButton.text = "Voxel Displacement Detector"
+    self.layout.addWidget(self.laplaceCollapsibleButton)
+
+    # Layout within the laplace collapsible button
+    self.laplaceFormLayout = qt.QFormLayout(self.laplaceCollapsibleButton)
 
     # the volume selectors
     self.inputFrame = qt.QFrame(self.laplaceCollapsibleButton)
     self.inputFrame.setLayout(qt.QHBoxLayout())
-    self.filterFormLayout.addWidget(self.inputFrame)
-    self.inputSelector = qt.QLabel("Input Volume #1 : ", self.inputFrame)
+    self.laplaceFormLayout.addWidget(self.inputFrame)
+    self.inputSelector = qt.QLabel("Input Volume #1: ", self.inputFrame)
     self.inputFrame.layout().addWidget(self.inputSelector)
     self.inputSelector = slicer.qMRMLNodeComboBox(self.inputFrame)
     self.inputSelector.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
@@ -56,93 +56,89 @@ class VDDWidget:
     self.inputSelector.setMRMLScene( slicer.mrmlScene )
     self.inputFrame.layout().addWidget(self.inputSelector)
 
+    self.inputFrame = qt.QFrame(self.laplaceCollapsibleButton)
+    self.inputFrame.setLayout(qt.QHBoxLayout())
+    self.laplaceFormLayout.addWidget(self.inputFrame)
+    self.inputSelector = qt.QLabel("Input Volume #2: ", self.inputFrame)
+    self.inputFrame.layout().addWidget(self.inputSelector)
+    self.inputSelector = slicer.qMRMLNodeComboBox(self.inputFrame)
+    self.inputSelector.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
+    self.inputSelector.addEnabled = False
+    self.inputSelector.removeEnabled = False
+    self.inputSelector.setMRMLScene( slicer.mrmlScene )
+    self.inputFrame.layout().addWidget(self.inputSelector)
+
+    self.outputFrame = qt.QFrame(self.laplaceCollapsibleButton)
+    self.outputFrame.setLayout(qt.QHBoxLayout())
+    self.laplaceFormLayout.addWidget(self.outputFrame)
+    self.outputSelector = qt.QLabel("Output Volume: ", self.outputFrame)
+    self.outputFrame.layout().addWidget(self.outputSelector)
+    self.outputSelector = slicer.qMRMLNodeComboBox(self.outputFrame)
+    self.outputSelector.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
+    self.outputSelector.setMRMLScene( slicer.mrmlScene )
+    self.outputFrame.layout().addWidget(self.outputSelector)
+
+    # Apply button
+    laplaceButton = qt.QPushButton("Calculate Voxel Displacement")
+    laplaceButton.toolTip = "Run the VDD."
+    self.laplaceFormLayout.addWidget(laplaceButton)
+    laplaceButton.connect('clicked(bool)', self.onApply)
+
+    ########################
     # Add a reload button for debug
     reloadButton = qt.QPushButton("Reload")
     reloadButton.toolTip = "Reload this Module"
-    reloadButton.name = "ITBImageFilter Reload"
+    reloadButton.name = "VDD Reload"
     reloadButton.connect('clicked()', self.onReload)
     self.reloadButton = reloadButton
-    self.filterFormLayout.addWidget(self.reloadButton)
-
-    # Add a clear screen button for debug
-    clearScreenButton = qt.QPushButton("Clear Screen")
-    clearScreenButton.toolTip = "Clear Python Interactor Screen"
-    clearScreenButton.name = "ClearScreen"
-    clearScreenButton.connect('clicked()', self.onClearScreen)
-    self.clearScreenButton = clearScreenButton
-    self.filterFormLayout.addWidget(self.clearScreenButton)
-
-
-    # Apply button
-    filterButton = qt.QPushButton("Apply")
-    filterButton.toolTip = "Calculate Voxel Displacement."
-    self.filterFormLayout.addWidget(filterButton)
-    filterButton.connect('clicked(bool)', self.onApply)
-    self.filterButton = filterButton
+    self.laplaceFormLayout.addWidget(reloadButton)
+    ########################
 
     # Add vertical spacer
     self.layout.addStretch(1)
 
+    # Set local var as instance attribute
+    self.laplaceButton = laplaceButton
 
-  # When the apply button is clicked
+  def distcalc(array1, array2):
+    dist = numpy.linalg.norm(array1 - array2)
+
   def onApply(self):
-    # Read in the image node
     inputVolume = self.inputSelector.currentNode()
-    # Extract the array
-    inputVolumeData = slicer.util.array(inputVolume.GetID())
-    # Name the output volume
-    outputVolume_name = inputVolume.GetName() + '_VDD'
-    # Copy image node, create a new volume node
-    volumesLogic = slicer.modules.volumes.logic()
-    outputVolume = volumesLogic.CloneVolume(slicer.mrmlScene, inputVolume, outputVolume_name)
-    # Find the array that is associated with the label map
-    outputVolumeData = slicer.util.array(outputVolume.GetID())
-    # the dimensions of the output volume
-    dx, dy, dz = outputVolumeData.shape 
-    print dx, dy, dz
-
-
-
-    #Euclidean Distance calculator, need to work out the direction of the vector as well use non linear image registration method
-
-    def distcalc(array1, array2):
-        dist = numpy.linalg.norm(array1 - array2)
-    #######################################################
-
-
-    """
-    Iterate all positions in the padded image with your kernel,
-    where x, y, z are the current coordinates of the central voxel of your kernel.
-    This for loop patter can be easily paralleled in practice in both hardware/software, 
-    since the processing at each location is independent. We only slect the central part
-    of the image to demonstrate the filtering effect. 
-    """
+    outputVolume = self.outputSelector.currentNode()
+    if not (inputVolume and outputVolume):
+      qt.QMessageBox.critical(
+          slicer.util.mainWindow(),
+          'VDD', 'Input and output volumes are required for VDD')
+      return
     
-    for x in np.arange(dx - dx/3) + dx/6:
-        for y in np.arange(dy - dy*2/3) + dy/3:
-            for z in np.arange(dz - dz*2/3) + dz/3:
-                patch = inputVolumeData[x - 1 : x + 2, y - 1: y + 2, z - 1 : z + 2]
-                value = (kernel[:]*(patch[:])).sum()
-                outputVolumeData[x, y, z] = value if value > 0 else 0
-
-
-    outputVolume.GetImageData().Modified()
+    ##############################
+    #Add tutorial code here
+    laplacian = vtk.vtkImageLaplacian()
+    laplacian.SetInputData(inputVolume.GetImageData())
+    laplacian.SetDimensionality(3)
+    laplacian.Update()
+    ##############################
     
+    ijkToRAS = vtk.vtkMatrix4x4()
+    inputVolume.GetIJKToRASMatrix(ijkToRAS)
+    outputVolume.SetIJKToRASMatrix(ijkToRAS)
+    outputVolume.SetAndObserveImageData(laplacian.GetOutput())
     # make the output volume appear in all the slice views
     selectionNode = slicer.app.applicationLogic().GetSelectionNode()
     selectionNode.SetReferenceActiveVolumeID(outputVolume.GetID())
     slicer.app.applicationLogic().PropagateVolumeSelection(0)
 
-
-  # 
-  # Supporting Functions
-  # 
-
-  # Reload the Module
-  def onReload(self, moduleName = "ITBImageFilter"):
+  ########################
+  # Add a reload button
+  def onReload(self, moduleName = "HelloLaplace"):
     import imp, sys, os, slicer
 
     widgetName = moduleName + "Widget"
+
+    # reload the source code
+    # - set source f path
+    # - load the module to the global space
     fPath = eval('slicer.modules.%s.path' % moduleName.lower())
     p = os.path.dirname(fPath)
     if not sys.path.__contains__(p):
@@ -152,6 +148,9 @@ class VDDWidget:
         moduleName, fp, fPath, ('.py', 'r', imp.PY_SOURCE))
     fp.close()
 
+    # rebuild the widget
+    # - find and hide the existing widget
+    # - create a new widget in the existing parent
     print "the module name to be reloaded,", moduleName
     # find the Button with a name 'moduleName Reolad', then find its parent (e.g., a collasp button) and grand parent (moduleNameWidget)
     parent = slicer.util.findChildren(name = '%s Reload' % moduleName)[0].parent().parent()
@@ -160,18 +159,12 @@ class VDDWidget:
         child.hide()
       except AttributeError:
         pass
-
+    # Remove spacer items
     item = parent.layout().itemAt(0)
     while item:
       parent.layout().removeItem(item)
       item = parent.layout().itemAt(0)
-
+    # create new widget inside existing parent
     globals()[widgetName.lower()] = eval('globals()["%s"].%s(parent)' % (moduleName, widgetName))
     globals()[widgetName.lower()].setup()
-
-
-  # Clear the Python Interacter Screen 
-  def onClearScreen(self):
-    print "\n" * 50
-
-
+  ########################
