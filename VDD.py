@@ -14,7 +14,7 @@ class VDD:
     COMP5424 Assignment creating a Slicer module for VDD.
     """
     parent.acknowledgementText = """
-    Python program to calculate voxel displacement of two images and display it in 3D Space""" # replace with organization, grant and thanks.
+    Python program to calculate voxel displacement of two images and display it in 3D Space"""
     self.parent = parent
 
 #
@@ -47,26 +47,26 @@ class VDDWidget:
     self.inputFrame = qt.QFrame(self.laplaceCollapsibleButton)
     self.inputFrame.setLayout(qt.QHBoxLayout())
     self.laplaceFormLayout.addWidget(self.inputFrame)
-    self.inputSelector = qt.QLabel("Input Volume #1: ", self.inputFrame)
-    self.inputFrame.layout().addWidget(self.inputSelector)
-    self.inputSelector = slicer.qMRMLNodeComboBox(self.inputFrame)
-    self.inputSelector.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
-    self.inputSelector.addEnabled = False
-    self.inputSelector.removeEnabled = False
-    self.inputSelector.setMRMLScene( slicer.mrmlScene )
-    self.inputFrame.layout().addWidget(self.inputSelector)
+    self.inputSelector1 = qt.QLabel("Input Baseline Scan Volume #1: ", self.inputFrame)
+    self.inputFrame.layout().addWidget(self.inputSelector1)
+    self.inputSelector1 = slicer.qMRMLNodeComboBox(self.inputFrame)
+    self.inputSelector1.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
+    self.inputSelector1.addEnabled = False
+    self.inputSelector1.removeEnabled = False
+    self.inputSelector1.setMRMLScene( slicer.mrmlScene )
+    self.inputFrame.layout().addWidget(self.inputSelector1)
 
     self.inputFrame = qt.QFrame(self.laplaceCollapsibleButton)
     self.inputFrame.setLayout(qt.QHBoxLayout())
     self.laplaceFormLayout.addWidget(self.inputFrame)
-    self.inputSelector = qt.QLabel("Input Volume #2: ", self.inputFrame)
-    self.inputFrame.layout().addWidget(self.inputSelector)
-    self.inputSelector = slicer.qMRMLNodeComboBox(self.inputFrame)
-    self.inputSelector.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
-    self.inputSelector.addEnabled = False
-    self.inputSelector.removeEnabled = False
-    self.inputSelector.setMRMLScene( slicer.mrmlScene )
-    self.inputFrame.layout().addWidget(self.inputSelector)
+    self.inputSelector2 = qt.QLabel("Input Follow Up Scan Volume #2: ", self.inputFrame)
+    self.inputFrame.layout().addWidget(self.inputSelector2)
+    self.inputSelector2 = slicer.qMRMLNodeComboBox(self.inputFrame)
+    self.inputSelector2.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
+    self.inputSelector2.addEnabled = False
+    self.inputSelector2.removeEnabled = False
+    self.inputSelector2.setMRMLScene( slicer.mrmlScene )
+    self.inputFrame.layout().addWidget(self.inputSelector2)
 
     self.outputFrame = qt.QFrame(self.laplaceCollapsibleButton)
     self.outputFrame.setLayout(qt.QHBoxLayout())
@@ -102,18 +102,50 @@ class VDDWidget:
 
   def distcalc(array1, array2):
     dist = numpy.linalg.norm(array1 - array2)
+  
+  #Linear Registration using General Registration module (accepts node of data)
+  def linearModel(volumeNode1,volumeNode2):
+    parameters={}
+    parameters["FixedImageVolume"]=volumeNode1.GetID()
+    parameters["MovingImageVolume"]=volumeNode2.GetID()
+    outModelVolume=slicer.vtkMRMLModelNode()
+    outTransformVolume=slicer.vtkMRMLModelNode()
+    slicer.mrmlScene.AddNode(outModelVolume)
+    slicer.mrmlScene.AddNode(outTransformVolume)
+    parameters["OutputImageVolume"]=outModelVolume.GetID()
+    parameters["SlicerLinearTransform"]=outTransformVolume.GetID()
+    parameters["TransformType"] = Affine
+    linearRego = slicer.modules.generalregistration
+    return(slicer.cli.run(linearRego, None, parameters))
+  
+  #Non Linear Registration using Demon Registration module
+  def nonlinearModel(volumeNode1,volumeNode2):
+    parameters={}
+    parameters["FixedImageVolume"] = volumeNode1.GetID()
+    parameters["MovingImageVolume"]=volumeNode2.GetID()
+    outModelVolume=slicer.vtkMRMLModelNode()
+    outDisplacementVolume=slicer.vtkMRMLModelNode()
+    slicer.mrmlScene.AddNode(outModelVolume)
+    slicer.mrmlScene.AddNode(outDisplacementVolume)
+    parameters["OutputImageVolume"]=outModelVolume.GetID()
+    parameters["OutputDisplacementFieldVolume"]=outDisplacementVolume.GetID()
+    parameters["RegistrationFilterType"]=Diffeomorphic
+    nonlinearRego = slicer.modules.demonregistration()
+    return(slicer.cli.run(nonlinearRego,None,parameters))
+
 
   def onApply(self):
-    inputVolume = self.inputSelector.currentNode()
+    inputVolume1 = self.inputSelector1.currentNode()
+    inputVolume2 = self.inputSelector2.currentNode()
     outputVolume = self.outputSelector.currentNode()
-    if not (inputVolume and outputVolume):
+    if not (inputVolume1 and inputVolume2 and outputVolume):
       qt.QMessageBox.critical(
           slicer.util.mainWindow(),
           'VDD', 'Input and output volumes are required for VDD')
       return
     
     ##############################
-    #Add tutorial code here
+    
     laplacian = vtk.vtkImageLaplacian()
     laplacian.SetInputData(inputVolume.GetImageData())
     laplacian.SetDimensionality(3)
