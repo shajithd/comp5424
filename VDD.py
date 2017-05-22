@@ -1,8 +1,38 @@
 from __main__ import vtk, qt, ctk, slicer
 
 #
-# HelloLaplace
+# VDD
 #
+
+#Linear Registration using General Registration module (accepts node of data)
+def linearModel(volumeNode1,volumeNode2):
+    parameters={}
+    parameters["FixedImageVolume"]=volumeNode1.GetID()
+    parameters["MovingImageVolume"]=volumeNode2.GetID()
+    outModelVolume=slicer.vtkMRMLModelNode()
+    outTransformVolume=slicer.vtkMRMLModelNode()
+    slicer.mrmlScene.AddNode(outModelVolume)
+    slicer.mrmlScene.AddNode(outTransformVolume)
+    parameters["OutputImageVolume"]=outModelVolume.GetID()
+    parameters["SlicerLinearTransform"]=outTransformVolume.GetID()
+    parameters["TransformType"] = "Affine"
+    linearRego = slicer.modules.brains()
+    return(slicer.cli.run(linearRego, None, parameters))
+  
+#Non Linear Registration using Demon Registration module
+def nonlinearModel(volumeNode1,volumeNode2):
+    parameters={}
+    parameters["FixedImageVolume"] = volumeNode1.GetID()
+    parameters["MovingImageVolume"]=volumeNode2.GetID()
+    outModelVolume=slicer.vtkMRMLModelNode()
+    outDisplacementVolume=slicer.vtkMRMLModelNode()
+    slicer.mrmlScene.AddNode(outModelVolume)
+    slicer.mrmlScene.AddNode(outDisplacementVolume)
+    parameters["OutputImageVolume"]=outModelVolume.GetID()
+    parameters["OutputDisplacementFieldVolume"]=outDisplacementVolume.GetID()
+    parameters["RegistrationFilterType"]=Diffeomorphic
+    nonlinearRego = slicer.modules.demonregistration()
+    return(slicer.cli.run(nonlinearRego,None,parameters))
 
 class VDD:
   def __init__(self, parent):
@@ -44,17 +74,18 @@ class VDDWidget:
     self.laplaceFormLayout = qt.QFormLayout(self.laplaceCollapsibleButton)
 
     # the volume selectors
-    self.inputFrame = qt.QFrame(self.laplaceCollapsibleButton)
-    self.inputFrame.setLayout(qt.QHBoxLayout())
-    self.laplaceFormLayout.addWidget(self.inputFrame)
-    self.inputSelector1 = qt.QLabel("Input Baseline Scan Volume #1: ", self.inputFrame)
-    self.inputFrame.layout().addWidget(self.inputSelector1)
-    self.inputSelector1 = slicer.qMRMLNodeComboBox(self.inputFrame)
+    self.inputFrame1 = qt.QFrame(self.laplaceCollapsibleButton)
+    self.inputFrame1.setLayout(qt.QHBoxLayout())
+    self.laplaceFormLayout.addWidget(self.inputFrame1)
+    self.inputSelector1 = qt.QLabel("Input Baseline Scan Volume #1: ", self.inputFrame1)
+    self.inputFrame1.layout().addWidget(self.inputSelector1)
+    self.inputSelector1 = slicer.qMRMLNodeComboBox(self.inputFrame1)
     self.inputSelector1.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
     self.inputSelector1.addEnabled = False
     self.inputSelector1.removeEnabled = False
     self.inputSelector1.setMRMLScene( slicer.mrmlScene )
-    self.inputFrame.layout().addWidget(self.inputSelector1)
+    self.inputFrame1.layout().addWidget(self.inputSelector1)
+
 
     self.inputFrame = qt.QFrame(self.laplaceCollapsibleButton)
     self.inputFrame.setLayout(qt.QHBoxLayout())
@@ -100,38 +131,6 @@ class VDDWidget:
     # Set local var as instance attribute
     self.laplaceButton = laplaceButton
 
-  def distcalc(array1, array2):
-    dist = numpy.linalg.norm(array1 - array2)
-  
-  #Linear Registration using General Registration module (accepts node of data)
-  def linearModel(volumeNode1,volumeNode2):
-    parameters={}
-    parameters["FixedImageVolume"]=volumeNode1.GetID()
-    parameters["MovingImageVolume"]=volumeNode2.GetID()
-    outModelVolume=slicer.vtkMRMLModelNode()
-    outTransformVolume=slicer.vtkMRMLModelNode()
-    slicer.mrmlScene.AddNode(outModelVolume)
-    slicer.mrmlScene.AddNode(outTransformVolume)
-    parameters["OutputImageVolume"]=outModelVolume.GetID()
-    parameters["SlicerLinearTransform"]=outTransformVolume.GetID()
-    parameters["TransformType"] = Affine
-    linearRego = slicer.modules.generalregistration
-    return(slicer.cli.run(linearRego, None, parameters))
-  
-  #Non Linear Registration using Demon Registration module
-  def nonlinearModel(volumeNode1,volumeNode2):
-    parameters={}
-    parameters["FixedImageVolume"] = volumeNode1.GetID()
-    parameters["MovingImageVolume"]=volumeNode2.GetID()
-    outModelVolume=slicer.vtkMRMLModelNode()
-    outDisplacementVolume=slicer.vtkMRMLModelNode()
-    slicer.mrmlScene.AddNode(outModelVolume)
-    slicer.mrmlScene.AddNode(outDisplacementVolume)
-    parameters["OutputImageVolume"]=outModelVolume.GetID()
-    parameters["OutputDisplacementFieldVolume"]=outDisplacementVolume.GetID()
-    parameters["RegistrationFilterType"]=Diffeomorphic
-    nonlinearRego = slicer.modules.demonregistration()
-    return(slicer.cli.run(nonlinearRego,None,parameters))
 
 
   def onApply(self):
@@ -145,11 +144,10 @@ class VDDWidget:
       return
     
     ##############################
+
+    linear = linearModel(inputVolume1,inputVolume2)
+    nonlinear = nonlinearModel(inputVolume1,inputVolume2)
     
-    laplacian = vtk.vtkImageLaplacian()
-    laplacian.SetInputData(inputVolume.GetImageData())
-    laplacian.SetDimensionality(3)
-    laplacian.Update()
     ##############################
     
     ijkToRAS = vtk.vtkMatrix4x4()
@@ -158,12 +156,12 @@ class VDDWidget:
     outputVolume.SetAndObserveImageData(laplacian.GetOutput())
     # make the output volume appear in all the slice views
     selectionNode = slicer.app.applicationLogic().GetSelectionNode()
-    selectionNode.SetReferenceActiveVolumeID(outputVolume.GetID())
+    selectionNode.SetReferenceActiveVolumeID(nonlinear.GetID())
     slicer.app.applicationLogic().PropagateVolumeSelection(0)
 
   ########################
   # Add a reload button
-  def onReload(self, moduleName = "HelloLaplace"):
+  def onReload(self, moduleName = "VDD"):
     import imp, sys, os, slicer
 
     widgetName = moduleName + "Widget"
