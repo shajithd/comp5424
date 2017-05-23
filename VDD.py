@@ -4,19 +4,23 @@ from __main__ import vtk, qt, ctk, slicer
 # VDD
 #
 
+outTransform=slicer.vtkMRMLLinearTransformNode()
+slicer.mrmlScene.AddNode(outTransform)
+
+outDisplacementVolume=slicer.vtkMRMLModelNode()
+slicer.mrmlScene.AddNode(outDisplacementVolume)
+
 #Linear Registration using General Registration module (accepts node of data)
 def linearModel(volumeNode1,volumeNode2):
     parameters={}
     parameters["FixedImageVolume"]=volumeNode1.GetID()
     parameters["MovingImageVolume"]=volumeNode2.GetID()
     outModelVolume=slicer.vtkMRMLModelNode()
-    outTransformVolume=slicer.vtkMRMLModelNode()
     slicer.mrmlScene.AddNode(outModelVolume)
-    slicer.mrmlScene.AddNode(outTransformVolume)
     parameters["OutputImageVolume"]=outModelVolume.GetID()
-    parameters["SlicerLinearTransform"]=outTransformVolume.GetID()
+    parameters["SlicerLinearTransform"]=outTransform.GetID()
     parameters["TransformType"] = "Affine"
-    linearRego = slicer.modules.brains()
+    linearRego = slicer.modules.brainsfit
     return(slicer.cli.run(linearRego, None, parameters))
   
 #Non Linear Registration using Demon Registration module
@@ -25,13 +29,12 @@ def nonlinearModel(volumeNode1,volumeNode2):
     parameters["FixedImageVolume"] = volumeNode1.GetID()
     parameters["MovingImageVolume"]=volumeNode2.GetID()
     outModelVolume=slicer.vtkMRMLModelNode()
-    outDisplacementVolume=slicer.vtkMRMLModelNode()
     slicer.mrmlScene.AddNode(outModelVolume)
-    slicer.mrmlScene.AddNode(outDisplacementVolume)
     parameters["OutputImageVolume"]=outModelVolume.GetID()
     parameters["OutputDisplacementFieldVolume"]=outDisplacementVolume.GetID()
-    parameters["RegistrationFilterType"]=Diffeomorphic
-    nonlinearRego = slicer.modules.demonregistration()
+    parameters["RegistrationFilterType"]="Diffeomorphic"
+    parameters["InitialTransformFilename"]=outTransform.GetID()
+    nonlinearRego = slicer.modules.brainsdemonwarp
     return(slicer.cli.run(nonlinearRego,None,parameters))
 
 class VDD:
@@ -150,14 +153,14 @@ class VDDWidget:
     
     ##############################
     
-    ijkToRAS = vtk.vtkMatrix4x4()
-    inputVolume.GetIJKToRASMatrix(ijkToRAS)
-    outputVolume.SetIJKToRASMatrix(ijkToRAS)
-    outputVolume.SetAndObserveImageData(laplacian.GetOutput())
+    #ijkToRAS = vtk.vtkMatrix4x4()
+    #inputVolume.GetIJKToRASMatrix(ijkToRAS)
+    #outputVolume.SetIJKToRASMatrix(ijkToRAS)
+    #outputVolume.SetAndObserveImageData(laplacian.GetOutput())
     # make the output volume appear in all the slice views
-    selectionNode = slicer.app.applicationLogic().GetSelectionNode()
-    selectionNode.SetReferenceActiveVolumeID(nonlinear.GetID())
-    slicer.app.applicationLogic().PropagateVolumeSelection(0)
+    #selectionNode = slicer.app.applicationLogic().GetSelectionNode()
+    #selectionNode.SetReferenceActiveVolumeID(linear.GetID())
+    #slicer.app.applicationLogic().PropagateVolumeSelection(0)
 
   ########################
   # Add a reload button
@@ -182,7 +185,8 @@ class VDDWidget:
     # - find and hide the existing widget
     # - create a new widget in the existing parent
     print "the module name to be reloaded,", moduleName
-    # find the Button with a name 'moduleName Reolad', then find its parent (e.g., a collasp button) and grand parent (moduleNameWidget)
+    # find the Button with a name 'moduleName Reload'
+    # then find its parent (e.g., a collasp button) and grand parent (moduleNameWidget)
     parent = slicer.util.findChildren(name = '%s Reload' % moduleName)[0].parent().parent()
     for child in parent.children():
       try:
