@@ -4,13 +4,14 @@ from __main__ import vtk, qt, ctk, slicer
 # VDD
 #
 
+#global MRML for linear transform and deformation map data
 outTransform=slicer.vtkMRMLLinearTransformNode()
 slicer.mrmlScene.AddNode(outTransform)
 
-outDisplacementVolume=slicer.vtkMRMLModelNode()
-slicer.mrmlScene.AddNode(outDisplacementVolume)
+outDisplacementMap=slicer.vtkMRMLGridTransformNode()
+slicer.mrmlScene.AddNode(outDisplacementMap)
 
-#Linear Registration using General Registration module (accepts node of data)
+#Linear Registration using General Registration module
 def linearModel(volumeNode1,volumeNode2):
     parameters={}
     parameters["FixedImageVolume"]=volumeNode1.GetID()
@@ -31,7 +32,7 @@ def nonlinearModel(volumeNode1,volumeNode2):
     outModelVolume=slicer.vtkMRMLModelNode()
     slicer.mrmlScene.AddNode(outModelVolume)
     parameters["OutputImageVolume"]=outModelVolume.GetID()
-    parameters["OutputDisplacementFieldVolume"]=outDisplacementVolume.GetID()
+    parameters["OutputDisplacementFieldVolume"]=outDisplacementMap.GetID()
     parameters["RegistrationFilterType"]="Diffeomorphic"
     parameters["InitialTransformFilename"]=outTransform.GetID()
     nonlinearRego = slicer.modules.brainsdemonwarp
@@ -51,7 +52,7 @@ class VDD:
     self.parent = parent
 
 #
-# qHelloPythonWidget
+# qVDD Widget
 #
 
 class VDDWidget:
@@ -73,10 +74,10 @@ class VDDWidget:
     self.laplaceCollapsibleButton.text = "Voxel Displacement Detector"
     self.layout.addWidget(self.laplaceCollapsibleButton)
 
-    # Layout within the laplace collapsible button
+    # Layout within the collapsible button
     self.laplaceFormLayout = qt.QFormLayout(self.laplaceCollapsibleButton)
 
-    # the volume selectors
+    # buttons for volume selectors
     self.inputFrame1 = qt.QFrame(self.laplaceCollapsibleButton)
     self.inputFrame1.setLayout(qt.QHBoxLayout())
     self.laplaceFormLayout.addWidget(self.inputFrame1)
@@ -118,7 +119,6 @@ class VDDWidget:
     self.laplaceFormLayout.addWidget(laplaceButton)
     laplaceButton.connect('clicked(bool)', self.onApply)
 
-    ########################
     # Add a reload button for debug
     reloadButton = qt.QPushButton("Reload")
     reloadButton.toolTip = "Reload this Module"
@@ -137,6 +137,7 @@ class VDDWidget:
 
 
   def onApply(self):
+    #set I/O
     inputVolume1 = self.inputSelector1.currentNode()
     inputVolume2 = self.inputSelector2.currentNode()
     outputVolume = self.outputSelector.currentNode()
@@ -146,23 +147,21 @@ class VDDWidget:
           'VDD', 'Input and output volumes are required for VDD')
       return
     
-    ##############################
+    #parse input volumes into linear and nonlinear registration methods
 
     linear = linearModel(inputVolume1,inputVolume2)
     nonlinear = nonlinearModel(inputVolume1,inputVolume2)
-    
-    ##############################
+
     
     #ijkToRAS = vtk.vtkMatrix4x4()
     #inputVolume.GetIJKToRASMatrix(ijkToRAS)
     #outputVolume.SetIJKToRASMatrix(ijkToRAS)
     #outputVolume.SetAndObserveImageData(laplacian.GetOutput())
     # make the output volume appear in all the slice views
-    #selectionNode = slicer.app.applicationLogic().GetSelectionNode()
-    #selectionNode.SetReferenceActiveVolumeID(linear.GetID())
-    #slicer.app.applicationLogic().PropagateVolumeSelection(0)
+    selectionNode = slicer.app.applicationLogic().GetSelectionNode()
+    selectionNode.SetReferenceActiveVolumeID(outputVolume.GetID())
+    slicer.app.applicationLogic().PropagateVolumeSelection(0)
 
-  ########################
   # Add a reload button
   def onReload(self, moduleName = "VDD"):
     import imp, sys, os, slicer
