@@ -155,9 +155,10 @@ class VDDWidget:
     pd.setMaximum(0)
     pd.setMinimum(0)
     pd.show()
-    while (nonlinear.GetStatus()==1 or linear.GetStatus()==1):
+    while (nonlinear.GetStatus()==1 or linear.GetStatus()==1 or linear.GetStatus()==2 or nonlinear.GetStatus()==2):
         slicer.app.processEvents()
     pd.hide()
+    print nonlinear.GetStatus()
 
 
     # make the output volume appear in all the slice views
