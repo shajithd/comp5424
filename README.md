@@ -1,8 +1,9 @@
-# comp5424
+# Voxel Displacement Detector
 COMP5424 Assignment Voxel Displacement Detector (VDD)
 
 This python program calculates the voxel displacements of two images linear and non-linear methods of
-image registration, and then displays the displacement map in 3D space.
+image registration. The resulting displacement field can then be visualised using the Transforms module.
+
 
 The particular Slicer modules used to compute the linear and non-linear registration is the General Registration (BRAINS) and Demon Registration (BRAINS) respectively.
 
@@ -18,3 +19,7 @@ Procedure:
 Test:
 
 	Sample baseline and follow up MRI scans are included in the test folder.
+
+This work is part of the University of Sydney, completed in partial fulfilment for credit in Information Technology in Biomedicine. 
+Authors: Shajith Dissanayake (USYD)
+Technical Supervisors: Sidong Liu (USYD), Tom Cai (USYD)

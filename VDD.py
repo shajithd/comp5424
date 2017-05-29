@@ -6,44 +6,57 @@ from __main__ import vtk, qt, ctk, slicer
 
 #global MRML for linear transform and deformation map data
 outTransform=slicer.vtkMRMLLinearTransformNode()
-slicer.mrmlScene.AddNode(outTransform)
+outTransform.SetName('Linear Transform')
 
 outDisplacementMap=slicer.vtkMRMLGridTransformNode()
-slicer.mrmlScene.AddNode(outDisplacementMap)
+outDisplacementMap.SetName('Displacement Field')
+
+#global nodes for output volumes
+outModelVolume1=slicer.vtkMRMLScalarVolumeNode()
+outModelVolume1.SetName('Linearly Registered Volume')
+
+outModelVolume2=slicer.vtkMRMLScalarVolumeNode()
+outModelVolume2.SetName('Non-linearly registered Volume')
 
 #Linear Registration using General Registration module
 def linearModel(volumeNode1,volumeNode2):
     parameters={}
+    slicer.mrmlScene.AddNode(outModelVolume1)
+    slicer.mrmlScene.AddNode(outTransform)
     parameters["fixedVolume"]=volumeNode1.GetID()
     parameters["movingVolume"]=volumeNode2.GetID()
-    #parameters["PercentageOfSamples"]=0.002
-    #parameters["B-SplineGridSize"]=[14 10 12]
-    outModelVolume1=slicer.vtkMRMLScalarVolumeNode()
-    slicer.mrmlScene.AddNode(outModelVolume1)
     parameters["outputVolume"]=outModelVolume1.GetID()
     parameters["linearTransform"]=outTransform.GetID()
     parameters["transformType"] = "Affine"
     linearRego = slicer.modules.brainsfit
+
     return(slicer.cli.run(linearRego, None, parameters))
   
 #Non Linear Registration using Demon Registration module
 def nonlinearModel(volumeNode1,volumeNode2):
     parameters={}
+    slicer.mrmlScene.AddNode(outModelVolume2)
+    slicer.mrmlScene.AddNode(outDisplacementMap)
     parameters["fixedVolume"] = volumeNode1.GetID()
     parameters["movingVolume"]=volumeNode2.GetID()
-    outModelVolume2=slicer.vtkMRMLScalarVolumeNode()
-    slicer.mrmlScene.AddNode(outModelVolume2)
     parameters["outputVolume"]=outModelVolume2.GetID()
     parameters["outputDisplacementFieldVolume"]=outDisplacementMap.GetID()
     parameters["registrationFilterType"]="Diffeomorphic"
     parameters["initializeWithTransform"]=outTransform.GetID()
     nonlinearRego = slicer.modules.brainsdemonwarp
+    slicer.app.processEvents()
     return(slicer.cli.run(nonlinearRego,None,parameters))
+def displayTransform():
+    parameters={}
+    parameters["activeTransform"] = outDisplacementMap.GetID()
+    parameters["visibleinsliceview"] = 1
+    transform = slicer.modules.transforms
+    return(slicer.cli.run(transform,None,parameters))
 
 class VDD:
   def __init__(self, parent):
     parent.title = "Voxel Displacement Detector (VDD)"
-    parent.categories = ["Examples"]
+    parent.categories = ["COMP5424"]
     parent.dependencies = []
     parent.contributors = ["Shajith Dissanayake (USYD)"]
     parent.helpText = """
@@ -105,26 +118,6 @@ class VDDWidget:
     self.inputSelector2.setMRMLScene( slicer.mrmlScene )
     self.inputFrame.layout().addWidget(self.inputSelector2)
 
-    self.outputFrame = qt.QFrame(self.laplaceCollapsibleButton)
-    self.outputFrame.setLayout(qt.QHBoxLayout())
-    self.laplaceFormLayout.addWidget(self.outputFrame)
-    self.outputSelector1 = qt.QLabel("Linearly Registered Output Volume: ", self.outputFrame)
-    self.outputFrame.layout().addWidget(self.outputSelector1)
-    self.outputSelector1 = slicer.qMRMLNodeComboBox(self.outputFrame)
-    self.outputSelector1.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
-    self.outputSelector1.setMRMLScene( slicer.mrmlScene )
-    self.outputFrame.layout().addWidget(self.outputSelector1)
-
-    self.outputFrame = qt.QFrame(self.laplaceCollapsibleButton)
-    self.outputFrame.setLayout(qt.QHBoxLayout())
-    self.laplaceFormLayout.addWidget(self.outputFrame)
-    self.outputSelector2 = qt.QLabel("Non-Linearly Registered Output Volume: ", self.outputFrame)
-    self.outputFrame.layout().addWidget(self.outputSelector2)
-    self.outputSelector2 = slicer.qMRMLNodeComboBox(self.outputFrame)
-    self.outputSelector2.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
-    self.outputSelector2.setMRMLScene( slicer.mrmlScene )
-    self.outputFrame.layout().addWidget(self.outputSelector2)
-
     # Apply button
     laplaceButton = qt.QPushButton("Calculate Voxel Displacement")
     laplaceButton.toolTip = "Run the VDD."
@@ -146,34 +139,35 @@ class VDDWidget:
     # Set local var as instance attribute
     self.laplaceButton = laplaceButton
 
-
-
   def onApply(self):
     #set I/O
     inputVolume1 = self.inputSelector1.currentNode()
     inputVolume2 = self.inputSelector2.currentNode()
-    outputVolume1 = self.outputSelector1.currentNode()
-    outputVolume2 = self.outputSelector2.currentNode()
-    if not (inputVolume1 and inputVolume2 and outputVolume1 and outputVolume2):
+
+    if not (inputVolume1 and inputVolume2):
       qt.QMessageBox.critical(
           slicer.util.mainWindow(),
-          'VDD', 'Input and output volumes are required for VDD')
+          'VDD', 'Input volumes are required for VDD')
       return
-    
+
+
     #parse input volumes into linear and nonlinear registration methods
 
     linear = linearModel(inputVolume1,inputVolume2)
     nonlinear = nonlinearModel(inputVolume1,inputVolume2)
 
-    
-    #ijkToRAS = vtk.vtkMatrix4x4()
-    #inputVolume.GetIJKToRASMatrix(ijkToRAS)
-    #outputVolume.SetIJKToRASMatrix(ijkToRAS)
-    #outputVolume.SetAndObserveImageData(laplacian.GetOutput())
+    pd=qt.QProgressBar()
+    pd.setMaximum(0)
+    pd.setMinimum(0)
+    pd.show()
+    while (nonlinear.GetStatus()==1 or linear.GetStatus()==1):
+        slicer.app.processEvents()
+    pd.hide()
+
+
     # make the output volume appear in all the slice views
-    selectionNode = slicer.app.applicationLogic().GetSelectionNode()
-    selectionNode.SetReferenceActiveVolumeID(outputVolume1.GetID())
     slicer.app.applicationLogic().PropagateVolumeSelection(0)
+    displayTransform()
 
   # Add a reload button
   def onReload(self, moduleName = "VDD"):
