@@ -46,12 +46,7 @@ def nonlinearModel(volumeNode1,volumeNode2):
     nonlinearRego = slicer.modules.brainsdemonwarp
     slicer.app.processEvents()
     return(slicer.cli.run(nonlinearRego,None,parameters))
-def displayTransform():
-    parameters={}
-    parameters["activeTransform"] = outDisplacementMap.GetID()
-    parameters["visibleinsliceview"] = 1
-    transform = slicer.modules.transforms
-    return(slicer.cli.run(transform,None,parameters))
+
 
 class VDD:
   def __init__(self, parent):
@@ -167,7 +162,6 @@ class VDDWidget:
 
     # make the output volume appear in all the slice views
     slicer.app.applicationLogic().PropagateVolumeSelection(0)
-    displayTransform()
 
   # Add a reload button
   def onReload(self, moduleName = "VDD"):
