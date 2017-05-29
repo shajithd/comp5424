@@ -1,7 +1,7 @@
 # Voxel Displacement Detector
 COMP5424 Assignment Voxel Displacement Detector (VDD)
 
-This python program calculates the voxel displacements of two images linear and non-linear methods of
+This Slicer module calculates the voxel displacements of two images linear and non-linear methods of
 image registration. The resulting displacement field can then be visualised using the Transforms module.
 
 
